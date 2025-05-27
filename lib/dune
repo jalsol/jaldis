@@ -3,3 +3,8 @@
  (libraries core async)
  (preprocess
   (pps ppx_jane)))
+
+(ocamllex lexer)
+
+(menhir
+ (modules parser))

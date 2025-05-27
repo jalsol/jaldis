@@ -12,6 +12,9 @@ depends: [
   "ocaml"
   "core"
   "async"
+  "ppx_jane"
+  "menhir"
+  "ocamlformat"
   "odoc" {with-doc}
 ]
 build: [

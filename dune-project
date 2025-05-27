@@ -17,6 +17,6 @@
  (name jaldis)
  (synopsis "just a little redis clone")
  (description "it is exactly how it's named")
- (depends ocaml core async))
+ (depends ocaml core async ppx_jane menhir ocamlformat))
 
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
+(using menhir 3.0)
