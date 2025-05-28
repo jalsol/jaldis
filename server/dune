@@ -1,6 +1,6 @@
 (executable
- (public_name jaldis)
+ (public_name server)
  (name main)
- (libraries jaldis)
+ (libraries resp)
  (preprocess
   (pps ppx_jane)))
