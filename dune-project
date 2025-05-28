@@ -17,6 +17,6 @@
  (name jaldis)
  (synopsis "just a little redis clone")
  (description "it is exactly how it's named")
- (depends ocaml core async ppx_jane menhir ocamlformat))
+ (depends ocaml core async ppx_jane menhir ocamlformat zarith))
 
 (using menhir 3.0)

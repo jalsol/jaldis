@@ -1,6 +1,6 @@
 (library
  (name jaldis)
- (libraries core async)
+ (libraries core async zarith)
  (preprocess
   (pps ppx_jane)))
 

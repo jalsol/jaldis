@@ -15,6 +15,7 @@ depends: [
   "ppx_jane"
   "menhir"
   "ocamlformat"
+  "zarith"
   "odoc" {with-doc}
 ]
 build: [

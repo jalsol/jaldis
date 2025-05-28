@@ -49,7 +49,7 @@ elem:
   | COMMA VALUE CRLF
     { Double (Float.of_string $2) }
   | LPAREN VALUE CRLF
-    { Big_int $2 }
+    { Big_int (Z.of_string $2) }
   | EXCLAM VALUE CRLF VALUE CRLF
     { Bulk_error (Int.of_string $2, $4) }
   | EQUAL VALUE CRLF VALUE CRLF
