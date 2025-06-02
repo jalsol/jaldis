@@ -13,7 +13,6 @@ depends: [
   "core"
   "async"
   "ppx_jane"
-  "menhir"
   "ocamlformat"
   "zarith"
   "odoc" {with-doc}

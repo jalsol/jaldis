@@ -1,10 +1,7 @@
 (library
  (name resp)
  (libraries core async zarith)
+ (modules ast parser big_int)
+ (inline_tests)
  (preprocess
-  (pps ppx_jane)))
-
-(ocamllex lexer)
-
-(menhir
- (modules parser))
+  (pps ppx_jane ppx_inline_test ppx_assert)))
