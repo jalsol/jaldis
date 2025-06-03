@@ -4,4 +4,4 @@
  (inline_tests)
  (preprocess
   (pps ppx_jane ppx_assert ppx_inline_test))
- (modules resp_parser resp_serializer))
+ (modules resp_parser resp_serializer resp_roundtrip))

@@ -23,15 +23,13 @@ let advance_by parser ~n =
   { parser with pos; ch }
 ;;
 
-let advance = advance_by ~n:1
-
 let parse_simple parser =
   Or_error.try_with (fun () ->
     String.substr_index_exn ~pos:parser.pos ~pattern:"\r\n" parser.input)
-  >>= fun i ->
+  >>| fun i ->
   let len = i - parser.pos in
   let next_parser = advance_by parser ~n:(len + 2) in
-  Ok (next_parser, String.sub ~pos:parser.pos ~len parser.input)
+  next_parser, String.sub ~pos:parser.pos ~len parser.input
 ;;
 
 let parse_string parser =
@@ -90,60 +88,39 @@ let parse_bulk_string parser =
   if len = -1
   then Ok (parser, Ast.Null)
   else
-    Or_error.try_with (fun () ->
-      String.substr_index_exn ~pos:parser.pos ~pattern:"\r\n" parser.input)
-    >>= fun i ->
-    if len = -1
-    then Ok (parser, Ast.Null)
-    else if i - parser.pos <> len
-    then
-      Or_error.errorf
-        "Bulk String: Expects length %d, received length %d"
-        len
-        (i - parser.pos)
-    else (
-      let next_parser = advance_by parser ~n:(len + 2) in
-      Ok (next_parser, Ast.Bulk_string (String.sub ~pos:parser.pos ~len parser.input)))
+    Or_error.try_with (fun () -> String.sub ~pos:parser.pos ~len:(len + 2) parser.input)
+    >>= fun input_crlf ->
+    Or_error.try_with (fun () -> String.chop_suffix_exn input_crlf ~suffix:"\r\n")
+    >>| fun input ->
+    let next_parser = advance_by parser ~n:(len + 2) in
+    next_parser, Ast.Bulk_string input
 ;;
 
 let parse_bulk_error parser =
   parse_aggregate parser
   >>= fun (parser, len) ->
-  Or_error.try_with (fun () ->
-    String.substr_index_exn ~pos:parser.pos ~pattern:"\r\n" parser.input)
-  >>= fun i ->
-  if i - parser.pos <> len
-  then
-    Or_error.errorf
-      "Bulk Error: Expects length %d, received length %d"
-      len
-      (i - parser.pos)
-  else (
-    let next_parser = advance_by parser ~n:(len + 2) in
-    Ok (next_parser, Ast.Bulk_error (String.sub ~pos:parser.pos ~len parser.input)))
+  Or_error.try_with (fun () -> String.sub ~pos:parser.pos ~len:(len + 2) parser.input)
+  >>= fun input_crlf ->
+  Or_error.try_with (fun () -> String.chop_suffix_exn input_crlf ~suffix:"\r\n")
+  >>| fun input ->
+  let next_parser = advance_by parser ~n:(len + 2) in
+  next_parser, Ast.Bulk_error input
 ;;
 
 let parse_verbatim_string parser =
   parse_aggregate parser
   >>= fun (parser, len) ->
-  Or_error.try_with (fun () ->
-    String.substr_index_exn ~pos:parser.pos ~pattern:"\r\n" parser.input)
-  >>= fun i ->
-  if i - parser.pos <> len
-  then
-    Or_error.errorf
-      "Verbatim String: Expects length %d, received length %d"
-      len
-      (i - parser.pos)
+  Or_error.try_with (fun () -> String.sub ~pos:parser.pos ~len:(len + 2) parser.input)
+  >>= fun input_crlf ->
+  Or_error.try_with (fun () -> String.chop_suffix_exn input_crlf ~suffix:"\r\n")
+  >>= fun input ->
+  Or_error.try_with (fun () -> String.lsplit2_exn input ~on:':')
+  >>= fun (enc, data) ->
+  if String.length enc <> 3
+  then Or_error.errorf "Verbatim String: Received enc length %d" (String.length enc)
   else (
-    let data = String.sub ~pos:parser.pos ~len parser.input in
-    Or_error.try_with (fun () -> String.lsplit2_exn ~on:':' data)
-    >>= fun (enc, data) ->
-    if String.length enc <> 3
-    then Or_error.errorf "Verbatim String: Received enc length %d" (String.length enc)
-    else (
-      let next_parser = advance_by parser ~n:(len + 2) in
-      Ok (next_parser, Ast.Verbatim_string (enc, data))))
+    let next_parser = advance_by parser ~n:(len + 2) in
+    Ok (next_parser, Ast.Verbatim_string (enc, data)))
 ;;
 
 let rec parse_element parser n =
@@ -154,7 +131,7 @@ let rec parse_element parser n =
     >>= fun (parser, elem) ->
     parse_element parser (n - 1) >>| fun (parser, rest) -> parser, elem :: rest
 
-and parse_key_value parser n =
+and parse_key_value parser ~n =
   if n = 0
   then Ok (parser, [])
   else
@@ -162,7 +139,8 @@ and parse_key_value parser n =
     >>= fun (parser, key) ->
     parse_next parser
     >>= fun (parser, value) ->
-    parse_key_value parser (n - 1) >>| fun (parser, rest) -> parser, (key, value) :: rest
+    parse_key_value parser ~n:(n - 1)
+    >>| fun (parser, rest) -> parser, (key, value) :: rest
 
 and parse_array parser =
   parse_aggregate parser
@@ -186,12 +164,12 @@ and parse_push parser =
 and parse_map parser =
   parse_aggregate parser
   >>= fun (parser, len) ->
-  parse_key_value parser len >>| fun (parser, map) -> parser, Ast.Map map
+  parse_key_value parser ~n:len >>| fun (parser, map) -> parser, Ast.Map map
 
 and parse_attribute parser =
   parse_aggregate parser
   >>= fun (parser, len) ->
-  parse_key_value parser len
+  parse_key_value parser ~n:len
   >>| fun (parser, attribute) -> parser, Ast.Attribute attribute
 
 and parse_next parser =
@@ -216,5 +194,5 @@ and parse_next parser =
       | '>' -> parse_push
       | _ -> fun _ -> Or_error.errorf "Found invalid character %c" ch
     in
-    parser |> advance |> parse_func ch
+    parser |> advance_by ~n:1 |> parse_func ch
 ;;
