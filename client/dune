@@ -1,0 +1,6 @@
+(executable
+ (public_name client)
+ (name main)
+ (libraries resp)
+ (preprocess
+  (pps ppx_jane)))

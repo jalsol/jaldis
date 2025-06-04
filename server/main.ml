@@ -1,16 +1,18 @@
 open Core
 open Async
 
+let handle_input input ~uppercase =
+  printf "client> %s\n" input;
+  if uppercase then String.uppercase input else input
+;;
+
 let run ~uppercase ~port =
   let host_and_port =
     Tcp.Server.create
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port port)
       (fun _addr r w ->
-         Pipe.transfer
-           (Reader.pipe r)
-           (Writer.pipe w)
-           ~f:(if uppercase then String.uppercase else Fn.id))
+         Pipe.transfer (Reader.pipe r) (Writer.pipe w) ~f:(handle_input ~uppercase))
   in
   ignore host_and_port;
   Deferred.never ()
