@@ -1,198 +1,116 @@
 open Core
-open Core.Or_error.Monad_infix
+open Angstrom
 
-type t =
-  { input : string
-  ; pos : int
-  ; ch : char option
-  }
+let crlf = string "\r\n"
 
-let init input =
-  if String.length input = 0
-  then { input; pos = 0; ch = None }
-  else { input; pos = 0; ch = Some (String.get input 0) }
+let decimal =
+  lift2
+    (fun sign digits -> Int.of_string (sign ^ digits))
+    (option "" (string "-"))
+    (take_while1 Char.is_digit)
 ;;
 
-let scan_ended ?(offset = 0) parser = parser.pos + offset >= String.length parser.input
-
-let advance_by parser ~n =
-  let pos = parser.pos + n in
-  let ch =
-    if scan_ended parser ~offset:n then None else Some (String.get parser.input pos)
-  in
-  { parser with pos; ch }
+let bool_of_string = function
+  | "t" -> true
+  | "f" -> false
+  | _ as data -> failwithf "Bool: expects #t/#f, received #%s" data ()
 ;;
 
-let parse_simple parser =
-  Or_error.try_with (fun () ->
-    String.substr_index_exn ~pos:parser.pos ~pattern:"\r\n" parser.input)
-  >>| fun i ->
-  let len = i - parser.pos in
-  let next_parser = advance_by parser ~n:(len + 2) in
-  next_parser, String.sub ~pos:parser.pos ~len parser.input
+let simple ~prefix ~ctor ~f =
+  char prefix *> take_till (Char.equal '\r') <* crlf >>| f >>| ctor
 ;;
 
-let parse_string parser =
-  parse_simple parser >>| fun (parser, data) -> parser, Ast.String data
+let bulk ~prefix ~f =
+  char prefix *> decimal
+  <* crlf
+  >>= function
+  | -1 -> return Ast.Null
+  | len when len >= 0 -> take len <* crlf >>| f
+  | _ -> fail "Bulk length has to be non-negative or null"
 ;;
 
-let parse_error parser =
-  parse_simple parser >>| fun (parser, data) -> parser, Ast.Error data
-;;
-
-let parse_int parser =
-  parse_simple parser
-  >>= fun (parser, data) ->
-  Or_error.try_with (fun () -> Int.of_string data) >>| fun num -> parser, Ast.Int num
-;;
-
-let parse_double parser =
-  parse_simple parser
-  >>= fun (parser, data) ->
-  Or_error.try_with (fun () -> Float.of_string data) >>| fun num -> parser, Ast.Double num
-;;
-
-let parse_big_int parser =
-  parse_simple parser
-  >>= fun (parser, data) ->
-  Or_error.try_with (fun () -> Z.of_string data) >>| fun num -> parser, Ast.Big_int num
-;;
-
-let parse_null parser = parse_simple parser >>| fun (parser, _) -> parser, Ast.Null
-
-let parse_bool parser =
-  parse_simple parser
-  >>= fun (parser, data) ->
-  (match data with
-   | "t" -> Ok true
-   | "f" -> Ok false
-   | _ -> Or_error.errorf "Bool: Expects #t/#f, found #%s" data)
-  >>| fun data -> parser, Ast.Bool data
-;;
-
-let parse_aggregate parser =
-  Or_error.try_with (fun () ->
-    String.substr_index_exn ~pos:parser.pos ~pattern:"\r\n" parser.input)
-  >>= fun i ->
-  let len = i - parser.pos in
-  Or_error.try_with (fun () ->
-    Int.of_string (String.sub ~pos:parser.pos ~len parser.input))
-  >>| fun num ->
-  let next_parser = advance_by parser ~n:(len + 2) in
-  next_parser, num
-;;
-
-let parse_bulk_string parser =
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  if len = -1
-  then Ok (parser, Ast.Null)
+let verbatim_string =
+  char '=' *> decimal
+  <* crlf
+  >>= fun len ->
+  if len < 0
+  then fail "Verbatim length has to be non-negative"
   else
-    Or_error.try_with (fun () -> String.sub ~pos:parser.pos ~len:(len + 2) parser.input)
-    >>= fun input_crlf ->
-    Or_error.try_with (fun () -> String.chop_suffix_exn input_crlf ~suffix:"\r\n")
-    >>| fun input ->
-    let next_parser = advance_by parser ~n:(len + 2) in
-    next_parser, Ast.Bulk_string input
+    take len
+    <* crlf
+    >>= fun data ->
+    match String.lsplit2 ~on:':' data with
+    | Some (fmt, data) -> return (Ast.Verbatim_string (fmt, data))
+    | None -> fail "Verbatim string missing ':'"
 ;;
 
-let parse_bulk_error parser =
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  Or_error.try_with (fun () -> String.sub ~pos:parser.pos ~len:(len + 2) parser.input)
-  >>= fun input_crlf ->
-  Or_error.try_with (fun () -> String.chop_suffix_exn input_crlf ~suffix:"\r\n")
-  >>| fun input ->
-  let next_parser = advance_by parser ~n:(len + 2) in
-  next_parser, Ast.Bulk_error input
+let array_of elem =
+  char '*' *> decimal
+  <* crlf
+  >>= function
+  | -1 -> return Ast.Null
+  | len when len >= 0 -> count len elem >>| fun elems -> Ast.Array elems
+  | _ -> fail "Array length has to be non-negative or null"
 ;;
 
-let parse_verbatim_string parser =
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  Or_error.try_with (fun () -> String.sub ~pos:parser.pos ~len:(len + 2) parser.input)
-  >>= fun input_crlf ->
-  Or_error.try_with (fun () -> String.chop_suffix_exn input_crlf ~suffix:"\r\n")
-  >>= fun input ->
-  Or_error.try_with (fun () -> String.lsplit2_exn input ~on:':')
-  >>= fun (enc, data) ->
-  if String.length enc <> 3
-  then Or_error.errorf "Verbatim String: Received enc length %d" (String.length enc)
+let set_of elem =
+  char '~' *> decimal
+  <* crlf
+  >>= fun len ->
+  if len < 0
+  then fail "Set length has to be non-negative"
+  else count len elem >>| fun elems -> Ast.Set elems
+;;
+
+let push_of elem =
+  char '>' *> decimal
+  <* crlf
+  >>= fun len ->
+  if len < 0
+  then fail "Push length has to be non-negative"
+  else count len elem >>| fun elems -> Ast.Push elems
+;;
+
+let map_of elem =
+  char '%' *> decimal
+  <* crlf
+  >>= fun len ->
+  if len < 0
+  then fail "Map length has to be non-negative"
   else (
-    let next_parser = advance_by parser ~n:(len + 2) in
-    Ok (next_parser, Ast.Verbatim_string (enc, data)))
+    let pair = lift2 (fun k v -> k, v) elem elem in
+    count len pair >>| fun elems -> Ast.Map elems)
 ;;
 
-let rec parse_element parser n =
-  if n = 0
-  then Ok (parser, [])
-  else
-    parse_next parser
-    >>= fun (parser, elem) ->
-    parse_element parser (n - 1) >>| fun (parser, rest) -> parser, elem :: rest
+let attribute_of elem =
+  char '`' *> decimal
+  <* crlf
+  >>= fun len ->
+  if len < 0
+  then fail "Attribute length has to be non-negative"
+  else (
+    let pair = lift2 (fun k v -> k, v) elem elem in
+    count len pair >>| fun elems -> Ast.Attribute elems)
+;;
 
-and parse_key_value parser ~n =
-  if n = 0
-  then Ok (parser, [])
-  else
-    parse_next parser
-    >>= fun (parser, key) ->
-    parse_next parser
-    >>= fun (parser, value) ->
-    parse_key_value parser ~n:(n - 1)
-    >>| fun (parser, rest) -> parser, (key, value) :: rest
-
-and parse_array parser =
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  if len = -1
-  then Ok (parser, Ast.Null)
-  else parse_element parser len >>| fun (parser, arr) -> parser, Ast.Array arr
-
-and parse_set parser =
-  (* TODO: set condition? *)
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  parse_element parser len >>| fun (parser, set) -> parser, Ast.Set set
-
-and parse_push parser =
-  (* TODO: push condition? *)
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  parse_element parser len >>| fun (parser, push) -> parser, Ast.Push push
-
-and parse_map parser =
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  parse_key_value parser ~n:len >>| fun (parser, map) -> parser, Ast.Map map
-
-and parse_attribute parser =
-  parse_aggregate parser
-  >>= fun (parser, len) ->
-  parse_key_value parser ~n:len
-  >>| fun (parser, attribute) -> parser, Ast.Attribute attribute
-
-and parse_next parser =
-  match parser.ch with
-  | None -> Or_error.error_string "eof"
-  | Some ch ->
-    let parse_func = function
-      | '+' -> parse_string
-      | '-' -> parse_error
-      | ':' -> parse_int
-      | '$' -> parse_bulk_string
-      | '*' -> parse_array
-      | '_' -> parse_null
-      | '#' -> parse_bool
-      | ',' -> parse_double
-      | '(' -> parse_big_int
-      | '!' -> parse_bulk_error
-      | '=' -> parse_verbatim_string
-      | '%' -> parse_map
-      | '`' -> parse_attribute
-      | '~' -> parse_set
-      | '>' -> parse_push
-      | _ -> fun _ -> Or_error.errorf "Found invalid character %c" ch
-    in
-    parser |> advance_by ~n:1 |> parse_func ch
+let parse =
+  fix
+  @@ fun parse ->
+  choice
+    [ simple ~prefix:'+' ~ctor:(fun data -> Ast.String data) ~f:Fn.id
+    ; simple ~prefix:'-' ~ctor:(fun data -> Ast.Error data) ~f:Fn.id
+    ; simple ~prefix:':' ~ctor:(fun data -> Ast.Int data) ~f:Int.of_string
+    ; simple ~prefix:'_' ~ctor:(fun _ -> Ast.Null) ~f:Fn.id
+    ; simple ~prefix:'#' ~ctor:(fun data -> Ast.Bool data) ~f:bool_of_string
+    ; simple ~prefix:',' ~ctor:(fun data -> Ast.Double data) ~f:Float.of_string
+    ; simple ~prefix:'(' ~ctor:(fun data -> Ast.Big_int data) ~f:Z.of_string
+    ; bulk ~prefix:'$' ~f:(fun data -> Ast.Bulk_string data)
+    ; bulk ~prefix:'!' ~f:(fun data -> Ast.Bulk_error data)
+    ; verbatim_string
+    ; array_of parse
+    ; set_of parse
+    ; push_of parse
+    ; map_of parse
+    ; attribute_of parse
+    ]
 ;;

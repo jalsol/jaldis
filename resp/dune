@@ -1,6 +1,6 @@
 (library
  (name resp)
- (libraries core async zarith)
+ (libraries core async zarith angstrom)
  (modules ast parser serializer big_int)
  (inline_tests)
  (preprocess

@@ -1,11 +1,11 @@
 open Core
 open Resp
+open Angstrom
 
 let parse_then_serialize input =
-  let parser = Parser.init input in
-  match Parser.parse_next parser with
-  | Ok (_, ast) -> Serializer.serialize ast
-  | Error err -> "ERR:" ^ Error.to_string_hum err
+  match parse_string ~consume:All Parser.parse input with
+  | Ok ast -> Serializer.serialize ast
+  | Error err -> "ERR" ^ err
 ;;
 
 (* Empty bulk string *)
@@ -153,7 +153,7 @@ let%expect_test {| push_empty |} =
 let%expect_test {| bulk_len_mismatch_err |} =
   let input = "$4\r\nabc\r\n" in
   Printf.printf "%S\n" (parse_then_serialize input);
-  [%expect {| "ERR:(Invalid_argument \"pos + len past end: 4 + 6 > 9\")" |}]
+  [%expect {| "ERR: no more choices" |}]
 ;;
 
 (* UTF‑8 Bulk String with Japanese characters (5 chars, 15 bytes) *)
@@ -201,7 +201,7 @@ let%expect_test {| invalid_type |} =
   let input = "^oops\r\n" in
   let round = parse_then_serialize input in
   print_endline round;
-  [%expect {| ERR:Found invalid character ^ |}]
+  [%expect {| ERR: no more choices |}]
 ;;
 
 (* Simple string missing CR should error *)
@@ -209,7 +209,7 @@ let%expect_test {| missing_crlf |} =
   let input = "+hello\n" in
   let round = parse_then_serialize input in
   print_endline round;
-  [%expect {| ERR:("Substring not found" (substring "\r\n")) |}]
+  [%expect {| ERR: no more choices |}]
 ;;
 
 (* Bulk string with non‑numeric length *)
@@ -217,5 +217,5 @@ let%expect_test {| bulk_len_nonnumeric |} =
   let input = "$x\r\nhey\r\n" in
   let round = parse_then_serialize input in
   print_endline round;
-  [%expect {| ERR:(Failure "Int.of_string: \"x\"") |}]
+  [%expect {| ERR: no more choices |}]
 ;;

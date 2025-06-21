@@ -1,11 +1,11 @@
 open Core
 open Resp
+open Angstrom
 
 let print_parse_result input =
-  let parser = Parser.init input in
-  match Parser.parse_next parser with
-  | Ok (_, ast) -> print_s [%sexp (ast : Ast.t)]
-  | Error err -> print_s [%sexp (Error.to_string_hum err : string)]
+  match parse_string ~consume:All Parser.parse input with
+  | Ok ast -> print_s [%sexp (ast : Ast.t)]
+  | Error msg -> print_s [%sexp (msg : string)]
 ;;
 
 (* RESP Simple String *)
