@@ -4,7 +4,7 @@ open Angstrom
 
 let parse_then_serialize input =
   match parse_string ~consume:All Parser.parse input with
-  | Ok ast -> Serializer.serialize ast
+  | Ok resp -> Serializer.serialize resp
   | Error err -> "ERR" ^ err
 ;;
 

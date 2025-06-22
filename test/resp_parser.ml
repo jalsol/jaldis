@@ -4,7 +4,7 @@ open Angstrom
 
 let print_parse_result input =
   match parse_string ~consume:All Parser.parse input with
-  | Ok ast -> print_s [%sexp (ast : Ast.t)]
+  | Ok resp -> print_s [%sexp (resp : R.t)]
   | Error msg -> print_s [%sexp (msg : string)]
 ;;
 

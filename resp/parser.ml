@@ -24,7 +24,7 @@ let bulk ~prefix ~f =
   char prefix *> decimal
   <* crlf
   >>= function
-  | -1 -> return Ast.Null
+  | -1 -> return R.Null
   | len when len >= 0 -> take len <* crlf >>| f
   | _ -> fail "Bulk length has to be non-negative or null"
 ;;
@@ -40,7 +40,7 @@ let verbatim_string =
     <* crlf
     >>= fun data ->
     match String.lsplit2 ~on:':' data with
-    | Some (fmt, data) -> return (Ast.Verbatim_string (fmt, data))
+    | Some (fmt, data) -> return (R.Verbatim_string (fmt, data))
     | None -> fail "Verbatim string missing ':'"
 ;;
 
@@ -48,8 +48,8 @@ let array_of elem =
   char '*' *> decimal
   <* crlf
   >>= function
-  | -1 -> return Ast.Null
-  | len when len >= 0 -> count len elem >>| fun elems -> Ast.Array elems
+  | -1 -> return R.Null
+  | len when len >= 0 -> count len elem >>| fun elems -> R.Array elems
   | _ -> fail "Array length has to be non-negative or null"
 ;;
 
@@ -59,7 +59,7 @@ let set_of elem =
   >>= fun len ->
   if len < 0
   then fail "Set length has to be non-negative"
-  else count len elem >>| fun elems -> Ast.Set elems
+  else count len elem >>| fun elems -> R.Set elems
 ;;
 
 let push_of elem =
@@ -68,7 +68,7 @@ let push_of elem =
   >>= fun len ->
   if len < 0
   then fail "Push length has to be non-negative"
-  else count len elem >>| fun elems -> Ast.Push elems
+  else count len elem >>| fun elems -> R.Push elems
 ;;
 
 let map_of elem =
@@ -79,7 +79,7 @@ let map_of elem =
   then fail "Map length has to be non-negative"
   else (
     let pair = lift2 (fun k v -> k, v) elem elem in
-    count len pair >>| fun elems -> Ast.Map elems)
+    count len pair >>| fun elems -> R.Map elems)
 ;;
 
 let attribute_of elem =
@@ -90,22 +90,22 @@ let attribute_of elem =
   then fail "Attribute length has to be non-negative"
   else (
     let pair = lift2 (fun k v -> k, v) elem elem in
-    count len pair >>| fun elems -> Ast.Attribute elems)
+    count len pair >>| fun elems -> R.Attribute elems)
 ;;
 
 let parse =
   fix
   @@ fun parse ->
   choice
-    [ simple ~prefix:'+' ~ctor:(fun data -> Ast.String data) ~f:Fn.id
-    ; simple ~prefix:'-' ~ctor:(fun data -> Ast.Error data) ~f:Fn.id
-    ; simple ~prefix:':' ~ctor:(fun data -> Ast.Int data) ~f:Int.of_string
-    ; simple ~prefix:'_' ~ctor:(fun _ -> Ast.Null) ~f:Fn.id
-    ; simple ~prefix:'#' ~ctor:(fun data -> Ast.Bool data) ~f:bool_of_string
-    ; simple ~prefix:',' ~ctor:(fun data -> Ast.Double data) ~f:Float.of_string
-    ; simple ~prefix:'(' ~ctor:(fun data -> Ast.Big_int data) ~f:Z.of_string
-    ; bulk ~prefix:'$' ~f:(fun data -> Ast.Bulk_string data)
-    ; bulk ~prefix:'!' ~f:(fun data -> Ast.Bulk_error data)
+    [ simple ~prefix:'+' ~ctor:(fun data -> R.String data) ~f:Fn.id
+    ; simple ~prefix:'-' ~ctor:(fun data -> R.Error data) ~f:Fn.id
+    ; simple ~prefix:':' ~ctor:(fun data -> R.Int data) ~f:Int.of_string
+    ; simple ~prefix:'_' ~ctor:(fun _ -> R.Null) ~f:Fn.id
+    ; simple ~prefix:'#' ~ctor:(fun data -> R.Bool data) ~f:bool_of_string
+    ; simple ~prefix:',' ~ctor:(fun data -> R.Double data) ~f:Float.of_string
+    ; simple ~prefix:'(' ~ctor:(fun data -> R.Big_int data) ~f:Z.of_string
+    ; bulk ~prefix:'$' ~f:(fun data -> R.Bulk_string data)
+    ; bulk ~prefix:'!' ~f:(fun data -> R.Bulk_error data)
     ; verbatim_string
     ; array_of parse
     ; set_of parse

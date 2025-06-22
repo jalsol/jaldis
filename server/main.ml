@@ -5,7 +5,7 @@ open Resp
 let handle_connection socket r w =
   printf "[%s] " (Socket.Address.to_string socket);
   let handle_one msg =
-    print_s (Resp.Ast.sexp_of_t msg);
+    print_s (R.sexp_of_t msg);
     Writer.write w @@ Serializer.serialize @@ Commands.handle_msg msg;
     Writer.flushed w
   in
