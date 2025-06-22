@@ -16,8 +16,8 @@ let bool_of_string = function
   | _ as data -> failwithf "Bool: expects #t/#f, received #%s" data ()
 ;;
 
-let simple ~prefix ~ctor ~f =
-  char prefix *> take_till (Char.equal '\r') <* crlf >>| f >>| ctor
+let simple ~prefix ~ctor ~cast =
+  char prefix *> take_till (Char.equal '\r') <* crlf >>| cast >>| ctor
 ;;
 
 let bulk ~prefix ~ctor =
@@ -97,13 +97,13 @@ let parse =
   fix
   @@ fun parse ->
   choice
-    [ simple ~prefix:'+' ~ctor:(fun data -> R.String data) ~f:Fn.id
-    ; simple ~prefix:'-' ~ctor:(fun data -> R.Error data) ~f:Fn.id
-    ; simple ~prefix:':' ~ctor:(fun data -> R.Int data) ~f:Int.of_string
-    ; simple ~prefix:'_' ~ctor:(fun _ -> R.Null) ~f:Fn.id
-    ; simple ~prefix:'#' ~ctor:(fun data -> R.Bool data) ~f:bool_of_string
-    ; simple ~prefix:',' ~ctor:(fun data -> R.Double data) ~f:Float.of_string
-    ; simple ~prefix:'(' ~ctor:(fun data -> R.Big_int data) ~f:Z.of_string
+    [ simple ~prefix:'+' ~ctor:(fun data -> R.String data) ~cast:Fn.id
+    ; simple ~prefix:'-' ~ctor:(fun data -> R.Error data) ~cast:Fn.id
+    ; simple ~prefix:':' ~ctor:(fun data -> R.Int data) ~cast:Int.of_string
+    ; simple ~prefix:'_' ~ctor:(fun _ -> R.Null) ~cast:Fn.id
+    ; simple ~prefix:'#' ~ctor:(fun data -> R.Bool data) ~cast:bool_of_string
+    ; simple ~prefix:',' ~ctor:(fun data -> R.Double data) ~cast:Float.of_string
+    ; simple ~prefix:'(' ~ctor:(fun data -> R.Big_int data) ~cast:Z.of_string
     ; bulk ~prefix:'$' ~ctor:(fun data -> R.Bulk_string data)
     ; bulk ~prefix:'!' ~ctor:(fun data -> R.Bulk_error data)
     ; verbatim_string

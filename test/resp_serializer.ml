@@ -81,8 +81,7 @@ let%expect_test {| array |} =
 
 (* RESP Map *)
 let%expect_test {| map |} =
-  print_serialization
-    (R.Map [ R.String "first", R.Int 1; R.String "second", R.Int 2 ]);
+  print_serialization (R.Map [ R.String "first", R.Int 1; R.String "second", R.Int 2 ]);
   [%expect {| "%2\r\n+first\r\n:1\r\n+second\r\n:2\r\n" |}]
 ;;
 
