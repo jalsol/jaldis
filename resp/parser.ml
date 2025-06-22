@@ -20,12 +20,12 @@ let simple ~prefix ~ctor ~f =
   char prefix *> take_till (Char.equal '\r') <* crlf >>| f >>| ctor
 ;;
 
-let bulk ~prefix ~f =
+let bulk ~prefix ~ctor =
   char prefix *> decimal
   <* crlf
   >>= function
   | -1 -> return R.Null
-  | len when len >= 0 -> take len <* crlf >>| f
+  | len when len >= 0 -> take len <* crlf >>| ctor
   | _ -> fail "Bulk length has to be non-negative or null"
 ;;
 
@@ -104,8 +104,8 @@ let parse =
     ; simple ~prefix:'#' ~ctor:(fun data -> R.Bool data) ~f:bool_of_string
     ; simple ~prefix:',' ~ctor:(fun data -> R.Double data) ~f:Float.of_string
     ; simple ~prefix:'(' ~ctor:(fun data -> R.Big_int data) ~f:Z.of_string
-    ; bulk ~prefix:'$' ~f:(fun data -> R.Bulk_string data)
-    ; bulk ~prefix:'!' ~f:(fun data -> R.Bulk_error data)
+    ; bulk ~prefix:'$' ~ctor:(fun data -> R.Bulk_string data)
+    ; bulk ~prefix:'!' ~ctor:(fun data -> R.Bulk_error data)
     ; verbatim_string
     ; array_of parse
     ; set_of parse
