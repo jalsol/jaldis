@@ -17,10 +17,31 @@ let ping = function
   | _ -> R.Error "ERR wrong argument"
 ;;
 
+let set = function
+  | [] | [ _ ] -> R.Error "ERR not enough arguments"
+  | [ R.Bulk_string key; R.Bulk_string value ] ->
+    Storage.set ~key ~value;
+    R.String "OK"
+  | _ -> R.Error "ERR not implemented"
+;;
+
+let get = function
+  | [] -> R.Error "ERR not enough arguments"
+  | [ R.Bulk_string key ] ->
+    let data = Storage.get ~key in
+    (match data with
+     | None -> R.Null
+     | Some (Storage.String value) -> R.Bulk_string value
+     | Some _ -> R.Error "ERR GET expects to get a string")
+  | _ -> R.Error "ERR not implemented"
+;;
+
 let run_command cmd args =
   match cmd with
   | R.Bulk_string "PING" -> ping args
   | R.Bulk_string "HELLO" -> hello
+  | R.Bulk_string "SET" -> set args
+  | R.Bulk_string "GET" -> get args
   | _ -> R.Error "ERR Not implemented"
 ;;
 
