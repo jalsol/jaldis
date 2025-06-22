@@ -1,6 +1,6 @@
 (executable
  (public_name server)
  (name main)
- (libraries resp)
+ (libraries resp core async angstrom angstrom-async)
  (preprocess
   (pps ppx_jane)))

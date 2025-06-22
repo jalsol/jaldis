@@ -16,6 +16,7 @@ depends: [
   "ocamlformat"
   "zarith"
   "angstrom"
+  "angstrom-async"
   "odoc" {with-doc}
 ]
 build: [

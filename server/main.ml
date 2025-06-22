@@ -1,18 +1,27 @@
 open Core
 open Async
+open Resp
 
-let handle_input input ~uppercase =
-  printf "client> %s\n" input;
-  if uppercase then String.uppercase input else input
+let handle_connection socket r w =
+  printf "[%s] " (Socket.Address.to_string socket);
+  let handle_one msg =
+    print_s (Resp.Ast.sexp_of_t msg);
+    Writer.write w @@ Serializer.serialize @@ Commands.handle_msg msg;
+    Writer.flushed w
+  in
+  match%bind Angstrom_async.parse_many Parser.parse handle_one r with
+  | Ok () -> Writer.close w
+  | Error err ->
+    Writer.writef w "-ERR:%s" err;
+    Writer.close w
 ;;
 
-let run ~uppercase ~port =
+let run ~port =
   let host_and_port =
     Tcp.Server.create
       ~on_handler_error:`Raise
       (Tcp.Where_to_listen.of_port port)
-      (fun _addr r w ->
-         Pipe.transfer (Reader.pipe r) (Writer.pipe w) ~f:(handle_input ~uppercase))
+      handle_connection
   in
   ignore host_and_port;
   Deferred.never ()
@@ -20,9 +29,8 @@ let run ~uppercase ~port =
 
 let () =
   [%map_open.Command
-    let uppercase = flag "-uppercase" no_arg ~doc:"Convert to uppercase"
-    and port = flag "-port" (optional_with_default 6969 int) ~doc:"Port (default 6969)" in
-    fun () -> run ~uppercase ~port]
+    let port = flag "-port" (optional_with_default 6969 int) ~doc:"Port (default 6969)" in
+    fun () -> run ~port]
   |> Command.async ~summary:"Echo server"
   |> Command_unix.run
 ;;
