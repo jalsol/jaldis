@@ -1,6 +1,7 @@
 open Core
 open Async
 open Resp
+open Server
 
 let handle_connection socket r w =
   printf "[%s] " (Socket.Address.to_string socket);

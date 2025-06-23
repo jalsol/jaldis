@@ -1,7 +1,7 @@
 (library
  (name test_jaldis)
- (libraries core resp)
+ (libraries core resp server)
  (inline_tests)
  (preprocess
   (pps ppx_jane ppx_assert ppx_inline_test))
- (modules resp_parser resp_serializer resp_roundtrip))
+ (modules resp_parser resp_serializer resp_roundtrip server_commands))

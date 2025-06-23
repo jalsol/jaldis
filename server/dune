@@ -1,6 +1,7 @@
-(executable
- (public_name server)
- (name main)
- (libraries resp core async angstrom angstrom-async)
+(library
+ (name server)
+ (libraries core async resp angstrom angstrom-async)
+ (modules commands rlist rstring storage)
+ (inline_tests)
  (preprocess
-  (pps ppx_jane)))
+  (pps ppx_jane ppx_inline_test ppx_assert)))

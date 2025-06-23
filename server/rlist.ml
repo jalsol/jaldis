@@ -90,7 +90,6 @@ let lrange = function
            let n = Deque.length list in
            let start = if start < 0 then n + start else start in
            let stop = if stop < 0 then n + stop else stop in
-           printf "LRANGE from %d to %d\n%!" start stop;
            let acc = ref [] in
            let i = ref 0 in
            Deque.iter list ~f:(fun elem ->
