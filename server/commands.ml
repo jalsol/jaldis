@@ -1,5 +1,8 @@
 open Core
 open Resp
+open Rstring
+open Rlist
+module S = Storage
 
 let hello =
   R.Map
@@ -16,30 +19,29 @@ let ping = function
   | _ -> R.Error "ERR wrong argument"
 ;;
 
-let set = function
-  | [] | [ _ ] -> R.Error "ERR not enough arguments"
-  | [ key; value ] ->
-    Storage.set ~key ~value;
+let flushdb = function
+  | [] ->
+    S.flushdb ();
     R.String "OK"
   | _ -> R.Error "ERR not implemented"
 ;;
 
-let get = function
-  | [] -> R.Error "ERR not enough arguments"
-  | [ key ] ->
-    let data = Storage.get ~key in
-    (match data with
-     | None -> R.Null
-     | Some (Storage.String value) -> R.Bulk_string value
-     | Some _ -> R.Error "ERR GET expects to get a string")
-  | _ -> R.Error "ERR not implemented"
-;;
-
 let run_command ~args = function
+  (* Protocol operations *)
   | "PING" -> ping args
   | "HELLO" -> hello
+  (* String operations *)
   | "SET" -> set args
   | "GET" -> get args
+  (* List operations *)
+  | "LLEN" -> llen args
+  | "LPUSH" -> lpush args
+  | "RPUSH" -> rpush args
+  | "LPOP" -> lpop args
+  | "RPOP" -> rpop args
+  | "LRANGE" -> lrange args
+  (* Others *)
+  | "FLUSHDB" -> flushdb args
   | _ -> R.Error "ERR Not implemented"
 ;;
 

@@ -16,16 +16,38 @@ let storage : (string, value) Hashtbl.t = Hashtbl.create (module String)
 let mutex = Mutex.create ()
 let create_value ~data ~ttl = { data; ttl }
 
-let set ~key ~value =
+let with_lock ~f =
   Mutex.lock mutex;
-  let data = create_value ~data:(String value) ~ttl:None in
-  Hashtbl.set storage ~key ~data;
+  let result = f () in
+  Mutex.unlock mutex;
+  result
+;;
+
+let set_nolock ~key ~data =
+  let data = create_value ~data ~ttl:None in
+  Hashtbl.set storage ~key ~data
+;;
+
+let set ~key ~data =
+  Mutex.lock mutex;
+  set_nolock ~key ~data;
   Mutex.unlock mutex
+;;
+
+let get_nolock ~key =
+  let opt = Hashtbl.find storage key in
+  opt >>= fun { data; ttl = _ } -> Some data
 ;;
 
 let get ~key =
   Mutex.lock mutex;
-  let opt = Hashtbl.find storage key in
+  let result = get_nolock ~key in
   Mutex.unlock mutex;
-  opt >>= fun { data; ttl = _ } -> Some data
+  result
+;;
+
+let flushdb () =
+  Mutex.lock mutex;
+  Hashtbl.clear storage;
+  Mutex.unlock mutex
 ;;
