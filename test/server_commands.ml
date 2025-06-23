@@ -9,29 +9,21 @@ let run cmd args =
 
 let%expect_test "basic string & list commands" =
   S.flushdb ();
-
   run "SET" [ "str1"; "hello" ];
   run "GET" [ "str1" ];
-
   run "LLEN" [ "list1" ];
-
   run "LPUSH" [ "list1"; "a"; "b"; "c" ];
   run "RPUSH" [ "list1"; "x"; "y" ];
   run "LRANGE" [ "list1"; "0"; "-1" ];
-
   run "LLEN" [ "list1" ];
   run "LPOP" [ "list1" ];
   run "RPOP" [ "list1" ];
   run "LRANGE" [ "list1"; "0"; "1" ];
-
   run "LRANGE" [ "list1"; "-2"; "-1" ];
-
   run "LLEN" [ "list1" ];
   run "LPOP" [ "list1"; "3" ];
-
   run "LLEN" [ "list1" ];
   run "LRANGE" [ "list1"; "0"; "-1" ];
-
   [%expect
     {|
     "+OK\r\n"
