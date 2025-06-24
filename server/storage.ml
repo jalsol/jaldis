@@ -24,4 +24,7 @@ let get ~key =
   opt >>= fun { data; ttl = _ } -> Some data
 ;;
 
+let del ~key = Hashtbl.remove storage key
+let length () = Hashtbl.length storage
 let flushdb () = Hashtbl.clear storage
+let keys () = Hashtbl.keys storage

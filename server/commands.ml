@@ -3,34 +3,15 @@ open Resp
 open Rstring
 open Rlist
 open Rset
+open Rops
 module S = Storage
-
-let hello =
-  R.Map
-    [ R.String "server", R.String "jaldis"
-    ; R.String "version", R.String "0.0.1"
-    ; R.String "proto", R.Int 3
-    ; R.String "hotel", R.String "trivago"
-    ]
-;;
-
-let ping = function
-  | [] -> R.String "PONG"
-  | [ msg ] -> R.Bulk_string msg
-  | _ -> R.Error "ERR wrong argument"
-;;
-
-let flushdb = function
-  | [] ->
-    S.flushdb ();
-    R.String "OK"
-  | _ -> R.Error "ERR not implemented"
-;;
 
 let run_command ~args = function
   (* Protocol operations *)
   | "PING" -> ping args
   | "HELLO" -> hello
+  | "DEL" -> del args
+  | "KEYS" -> keys ()
   (* String operations *)
   | "SET" -> set args
   | "GET" -> get args
