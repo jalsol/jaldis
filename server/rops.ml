@@ -35,3 +35,23 @@ let keys () =
   let keys = List.map (Storage.keys ()) ~f:(fun key -> R.Bulk_string key) in
   R.Array keys
 ;;
+
+let expire = function
+  | [] | [ _ ] -> R.Error "ERR not enough arguments"
+  | [ key; duration ] ->
+    (match Int.of_string_opt duration with
+     | None -> R.Error "ERR duration has to be int"
+     | Some duration -> R.Int (Bool.to_int (Storage.expire ~key ~duration)))
+  | _ -> R.Error "ERR Not implemented"
+;;
+
+let ttl = function
+  | [] -> R.Error "ERR not enough arguments"
+  | [ key ] ->
+    (match Storage.ttl ~key with
+     | `Key_not_exist -> R.Int (-2)
+     | `Key_no_expire -> R.Int (-1)
+     | `Ttl duration -> R.Int duration
+     | _ -> failwith "Not happening")
+  | _ -> R.Error "ERR Not implemented"
+;;

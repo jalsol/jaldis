@@ -12,6 +12,8 @@ let run_command ~args = function
   | "HELLO" -> hello
   | "DEL" -> del args
   | "KEYS" -> keys ()
+  | "EXPIRE" -> expire args
+  | "TTL" -> ttl args
   (* String operations *)
   | "SET" -> set args
   | "GET" -> get args
