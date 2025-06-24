@@ -1,7 +1,7 @@
 (library
  (name server)
  (libraries core async resp angstrom angstrom-async)
- (modules commands rlist rstring storage)
+ (modules commands rlist rstring rset storage)
  (inline_tests)
  (preprocess
   (pps ppx_jane ppx_inline_test ppx_assert)))

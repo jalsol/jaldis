@@ -2,6 +2,7 @@ open Core
 open Resp
 open Rstring
 open Rlist
+open Rset
 module S = Storage
 
 let hello =
@@ -40,6 +41,13 @@ let run_command ~args = function
   | "LPOP" -> lpop args
   | "RPOP" -> rpop args
   | "LRANGE" -> lrange args
+  (* Set operations *)
+  | "SADD" -> sadd args
+  | "SCARD" -> scard args
+  | "SMEMBERS" -> smembers args
+  | "SREM" -> srem args
+  | "SINTER" -> sinter args
+  | "SISMEMBER" -> sismember args
   (* Others *)
   | "FLUSHDB" -> flushdb args
   | _ -> R.Error "ERR Not implemented"

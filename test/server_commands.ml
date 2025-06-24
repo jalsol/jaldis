@@ -43,3 +43,28 @@ let%expect_test "basic string & list commands" =
     "*0\r\n"
     |}]
 ;;
+
+let%expect_test "basic set commands" =
+  S.flushdb ();
+  run "SADD" [ "set1"; "a"; "b"; "c" ];
+  run "SADD" [ "set1"; "b"; "d" ];
+  run "SCARD" [ "set1" ];
+  run "SMEMBERS" [ "set1" ];
+  run "SISMEMBER" [ "set1"; "c" ];
+  run "SISMEMBER" [ "set1"; "x" ];
+  run "SREM" [ "set1"; "a"; "x" ];
+  run "SCARD" [ "set1" ];
+  run "SMEMBERS" [ "set1" ];
+  [%expect
+    {|
+    ":3\r\n"
+    ":1\r\n"
+    ":4\r\n"
+    "~4\r\n$1\r\nd\r\n$1\r\nc\r\n$1\r\nb\r\n$1\r\na\r\n"
+    ":1\r\n"
+    ":0\r\n"
+    ":1\r\n"
+    ":3\r\n"
+    "~3\r\n$1\r\nd\r\n$1\r\nc\r\n$1\r\nb\r\n"
+    |}]
+;;
