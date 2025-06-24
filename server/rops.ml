@@ -47,11 +47,6 @@ let expire = function
 
 let ttl = function
   | [] -> R.Error "ERR not enough arguments"
-  | [ key ] ->
-    (match Storage.ttl ~key with
-     | `Key_not_exist -> R.Int (-2)
-     | `Key_no_expire -> R.Int (-1)
-     | `Ttl duration -> R.Int duration
-     | _ -> failwith "Not happening")
+  | [ key ] -> R.Int (Storage.ttl ~key)
   | _ -> R.Error "ERR Not implemented"
 ;;

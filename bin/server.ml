@@ -24,6 +24,8 @@ let run ~port =
       (Tcp.Where_to_listen.of_port port)
       handle_connection
   in
+  Clock.every ~continue_on_error:true (Time_float.Span.of_int_ms 100) (fun () ->
+    ignore (Storage.sweep_expired ~quota:20 ()));
   ignore host_and_port;
   Deferred.never ()
 ;;
