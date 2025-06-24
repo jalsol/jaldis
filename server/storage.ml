@@ -1,5 +1,4 @@
 open Core
-open Caml_threads
 open Option.Monad_infix
 
 type data =
@@ -13,41 +12,16 @@ type value =
   }
 
 let storage : (string, value) Hashtbl.t = Hashtbl.create (module String)
-let mutex = Mutex.create ()
 let create_value ~data ~ttl = { data; ttl }
 
-let with_lock ~f =
-  Mutex.lock mutex;
-  let result = f () in
-  Mutex.unlock mutex;
-  result
-;;
-
-let set_nolock ~key ~data =
+let set ~key ~data =
   let data = create_value ~data ~ttl:None in
   Hashtbl.set storage ~key ~data
 ;;
 
-let set ~key ~data =
-  Mutex.lock mutex;
-  set_nolock ~key ~data;
-  Mutex.unlock mutex
-;;
-
-let get_nolock ~key =
+let get ~key =
   let opt = Hashtbl.find storage key in
   opt >>= fun { data; ttl = _ } -> Some data
 ;;
 
-let get ~key =
-  Mutex.lock mutex;
-  let result = get_nolock ~key in
-  Mutex.unlock mutex;
-  result
-;;
-
-let flushdb () =
-  Mutex.lock mutex;
-  Hashtbl.clear storage;
-  Mutex.unlock mutex
-;;
+let flushdb () = Hashtbl.clear storage
