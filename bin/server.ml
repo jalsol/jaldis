@@ -3,12 +3,10 @@ open Async
 open Resp
 open Server
 
-let handle_connection socket r w =
-  printf "[%s] " (Socket.Address.to_string socket);
+let handle_connection _socket r w =
   let handle_one msg =
-    print_s (R.sexp_of_t msg);
     Writer.write w @@ Serializer.serialize @@ Commands.handle_msg msg;
-    Writer.flushed w
+    return ()
   in
   match%bind Angstrom_async.parse_many Parser.parse handle_one r with
   | Ok () -> Writer.close w
@@ -25,7 +23,7 @@ let run ~port =
       handle_connection
   in
   Clock.every ~continue_on_error:true (Time_float.Span.of_int_ms 100) (fun () ->
-    ignore (Storage.sweep_expired ~quota:20 ()));
+    ignore (Storage.sweep_expired ~quota:50 ()));
   ignore host_and_port;
   Deferred.never ()
 ;;

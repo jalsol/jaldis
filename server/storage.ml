@@ -11,11 +11,12 @@ let expiry : (string, Time_ns.t) Hashtbl.t = Hashtbl.create (module String)
 
 let is_expired ~key =
   match Hashtbl.find expiry key with
+  | None -> false
   | Some deadline when Time_ns.(now () > deadline) ->
     Hashtbl.remove storage key;
     Hashtbl.remove expiry key;
     true
-  | _ -> false
+  | Some _ -> false
 ;;
 
 let set ~key ~data =
