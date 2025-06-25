@@ -88,6 +88,33 @@ dune exec server -- -port 6379
 - **Large Tables** (>100 keys): Probabilistic sampling to avoid O(n) scans
 - **Background Cleanup** - Automatic expired key removal every 100ms
 
+## Benchmarking
+
+Performance benchmarks using `redis-benchmark` against jaldis server:
+
+### Test Configuration
+- **Hardware**: Intel Core i5-1135G7
+- **OS**: Linux 5.15.0-130-generic
+- **OCaml**: 5.3.0
+- **Network**: localhost
+- **Test Parameters**: 100,000 `SET/GET` operations, 100 concurrent connections
+
+```bash
+# Standard benchmark
+redis-benchmark -h 127.0.0.1 -p 6969 -n 100000 -c 100 -t set,get --csv
+
+# Pipelined benchmark (16 commands per pipeline)
+redis-benchmark -h 127.0.0.1 -p 6969 -n 100000 -c 100 -t set,get -P 16 --csv
+```
+
+### Results
+
+#### Standard Mode (No Pipelining)
+![Standard Mode](./misc/benchmark_standard.png)
+
+#### Pipelined Mode (`-P 16`)
+![Pipelined Mode](./misc/benchmark_pipelined.png)
+
 ## Development
 
 ### Run Tests
