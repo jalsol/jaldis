@@ -13,7 +13,7 @@ let decimal =
 let bool_of_string = function
   | "t" -> true
   | "f" -> false
-  | _ as data -> failwithf "Bool: expects #t/#f, received #%s" data ()
+  | data -> failwithf "Bool: expects #t/#f, received #%s" data ()
 ;;
 
 let simple ~prefix ~ctor ~cast =
@@ -26,7 +26,34 @@ let bulk ~prefix ~ctor =
   >>= function
   | -1 -> return R.Null
   | len when len >= 0 -> take len <* crlf >>| ctor
-  | _ -> fail "Bulk length has to be non-negative or null"
+  | len -> fail [%string "Bulk length must be non-negative or -1, got %{len#Int}"]
+;;
+
+let array elem =
+  char '*' *> decimal
+  <* crlf
+  >>= function
+  | -1 -> return R.Null
+  | len when len >= 0 -> count len elem >>| fun elems -> R.Array elems
+  | len -> fail [%string "Array length must be non-negative or -1, got %{len#Int}"]
+;;
+
+let collection ~prefix ~ctor elem =
+  char prefix *> decimal
+  <* crlf
+  >>= function
+  | len when len >= 0 -> count len elem >>| ctor
+  | len -> fail [%string "Collection length must be non-negative, got %{len#Int}"]
+;;
+
+let pair_collection ~prefix ~ctor elem =
+  char prefix *> decimal
+  <* crlf
+  >>= function
+  | len when len >= 0 ->
+    let pair = lift2 (fun k v -> k, v) elem elem in
+    count len pair >>| ctor
+  | len -> fail [%string "Pair collection length must be non-negative, got %{len#Int}"]
 ;;
 
 let verbatim_string =
@@ -34,63 +61,14 @@ let verbatim_string =
   <* crlf
   >>= fun len ->
   if len < 0
-  then fail "Verbatim length has to be non-negative"
+  then fail [%string "Verbatim length must be non-negative, got %{len#Int}"]
   else
     take len
     <* crlf
     >>= fun data ->
     match String.lsplit2 ~on:':' data with
-    | Some (fmt, data) -> return (R.Verbatim_string (fmt, data))
-    | None -> fail "Verbatim string missing ':'"
-;;
-
-let array_of elem =
-  char '*' *> decimal
-  <* crlf
-  >>= function
-  | -1 -> return R.Null
-  | len when len >= 0 -> count len elem >>| fun elems -> R.Array elems
-  | _ -> fail "Array length has to be non-negative or null"
-;;
-
-let set_of elem =
-  char '~' *> decimal
-  <* crlf
-  >>= fun len ->
-  if len < 0
-  then fail "Set length has to be non-negative"
-  else count len elem >>| fun elems -> R.Set elems
-;;
-
-let push_of elem =
-  char '>' *> decimal
-  <* crlf
-  >>= fun len ->
-  if len < 0
-  then fail "Push length has to be non-negative"
-  else count len elem >>| fun elems -> R.Push elems
-;;
-
-let map_of elem =
-  char '%' *> decimal
-  <* crlf
-  >>= fun len ->
-  if len < 0
-  then fail "Map length has to be non-negative"
-  else (
-    let pair = lift2 (fun k v -> k, v) elem elem in
-    count len pair >>| fun elems -> R.Map elems)
-;;
-
-let attribute_of elem =
-  char '`' *> decimal
-  <* crlf
-  >>= fun len ->
-  if len < 0
-  then fail "Attribute length has to be non-negative"
-  else (
-    let pair = lift2 (fun k v -> k, v) elem elem in
-    count len pair >>| fun elems -> R.Attribute elems)
+    | Some (fmt, content) -> return (R.Verbatim_string (fmt, content))
+    | None -> fail "Verbatim string missing format separator ':'"
 ;;
 
 let parse =
@@ -107,10 +85,10 @@ let parse =
     ; bulk ~prefix:'$' ~ctor:(fun data -> R.Bulk_string data)
     ; bulk ~prefix:'!' ~ctor:(fun data -> R.Bulk_error data)
     ; verbatim_string
-    ; array_of parse
-    ; set_of parse
-    ; push_of parse
-    ; map_of parse
-    ; attribute_of parse
+    ; array parse
+    ; collection ~prefix:'~' ~ctor:(fun elems -> R.Set elems) parse
+    ; collection ~prefix:'>' ~ctor:(fun elems -> R.Push elems) parse
+    ; pair_collection ~prefix:'%' ~ctor:(fun pairs -> R.Map pairs) parse
+    ; pair_collection ~prefix:'`' ~ctor:(fun pairs -> R.Attribute pairs) parse
     ]
 ;;
