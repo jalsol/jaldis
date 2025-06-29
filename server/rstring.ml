@@ -15,6 +15,6 @@ let get = function
     (match S.get ~key with
      | None -> R.Null
      | Some (S.String value) -> R.Bulk_string value
-     | Some _ -> R.Error "WRONGTYPE expects to get a string")
+     | _ -> R.Error "WRONGTYPE expects to get a string")
   | _ -> R.Error "ERR not implemented"
 ;;

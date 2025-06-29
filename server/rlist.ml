@@ -8,7 +8,7 @@ let llen = function
     (match S.get ~key with
      | None -> R.Int 0
      | Some (S.List list) -> R.Int (Deque.length list)
-     | Some _ -> R.Error "WRONGTYPE expects to get a list")
+     | _ -> R.Error "WRONGTYPE expects to get a list")
   | _ -> R.Error "ERR not implemented"
 ;;
 
@@ -24,7 +24,7 @@ let push ~back_or_front = function
      | Some (S.List list) ->
        List.iter values ~f:(Deque.enqueue list back_or_front);
        R.Int (Deque.length list)
-     | Some _ -> R.Error "WRONGTYPE expects to get a list")
+     | _ -> R.Error "WRONGTYPE expects to get a list")
 ;;
 
 let lpush = push ~back_or_front:`front
@@ -69,7 +69,7 @@ let pop ~back_or_front = function
            | Default_one, [ value ] -> value
            | Default_one, _ -> failwith "Internal error"
            | Explicit _, values -> R.Array values)
-        | Some _ -> R.Error "WRONGTYPE expects to get a list"))
+        | _ -> R.Error "WRONGTYPE expects to get a list"))
 ;;
 
 let lpop = pop ~back_or_front:`front
@@ -93,6 +93,6 @@ let lrange = function
             if start <= !i && !i <= stop then acc := R.Bulk_string elem :: !acc;
             incr i);
           R.Array (List.rev !acc)
-        | Some _ -> R.Error "WRONGTYPE expects to get a list"))
+        | _ -> R.Error "WRONGTYPE expects to get a list"))
   | _ -> R.Error "ERR not implemented"
 ;;
