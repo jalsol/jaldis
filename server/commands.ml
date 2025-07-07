@@ -4,7 +4,6 @@ open Rstring
 open Rlist
 open Rset
 open Rops
-module S = Storage
 
 let run_command ~args = function
   (* Protocol operations *)

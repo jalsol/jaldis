@@ -1,14 +1,13 @@
 open Core
 open Resp
 open Server
-module S = Storage
 
 let run cmd args =
   Commands.run_command cmd ~args |> Serializer.serialize |> Printf.printf "%S\n"
 ;;
 
 let%expect_test "basic string & list commands" =
-  S.flushdb ();
+  Storage.flushdb ();
   run "SET" [ "str1"; "hello" ];
   run "GET" [ "str1" ];
   run "LLEN" [ "list1" ];
@@ -45,7 +44,7 @@ let%expect_test "basic string & list commands" =
 ;;
 
 let%expect_test "basic set commands" =
-  S.flushdb ();
+  Storage.flushdb ();
   run "SADD" [ "set1"; "a"; "b"; "c" ];
   run "SADD" [ "set1"; "b"; "d" ];
   run "SCARD" [ "set1" ];

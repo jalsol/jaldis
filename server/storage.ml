@@ -1,5 +1,4 @@
 open Core
-open Option.Monad_infix
 
 type data =
   | String of string
@@ -24,7 +23,7 @@ let set ~key ~data =
   result
 ;;
 
-let get ~key = if is_expired ~key then None else Hashtbl.find storage key >>| Fn.id
+let get ~key = if is_expired ~key then None else Hashtbl.find storage key
 
 let del ~key =
   Hashtbl.remove storage key;
@@ -66,15 +65,16 @@ let ttl ~key =
 
 let collect_expired_keys ~quota ~now expiry_pairs =
   expiry_pairs
-  |> List.filter ~f:(fun (_, ts) -> Time_ns.( <= ) ts now)
-  |> (fun expired -> List.take expired quota)
-  |> List.map ~f:fst
+  |> Sequence.of_list
+  |> Sequence.filter ~f:(fun (_, ts) -> Time_ns.( <= ) ts now)
+  |> (fun expired -> Sequence.take expired quota)
+  |> Sequence.map ~f:fst
 ;;
 
 let sweep_small_table ~quota ~now =
   let expired_keys = Hashtbl.to_alist expiry |> collect_expired_keys ~quota ~now in
-  List.iter expired_keys ~f:(fun key -> del ~key);
-  List.length expired_keys
+  Sequence.iter expired_keys ~f:(fun key -> del ~key);
+  Sequence.length expired_keys
 ;;
 
 let sweep_large_table ~quota ~now =
